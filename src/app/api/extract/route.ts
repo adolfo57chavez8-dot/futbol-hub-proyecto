@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return NextResponse.json({ error: "Falta GEMINI_API_KEY en el servidor" }, { status: 500 });
     if (!PROMPTS[kind] || !image) return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
