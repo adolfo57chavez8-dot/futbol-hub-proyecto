@@ -14,15 +14,23 @@ export async function POST(req: Request) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return NextResponse.json({ error: "Falta GEMINI_API_KEY en el servidor" }, { status: 500 });
     if (!PROMPTS[kind] || !image) return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: PROMPTS[kind] }, { inline_data: { mime_type: mime, data: image } }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0 },
-      }),
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`;
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: PROMPTS[kind] }, { inline_data: { mime_type: mime, data: image } }] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0 },
     });
-    const j = await r.json();
+
+    // Reintenta si Gemini está saturado (503) o limita las peticiones (429).
+    let r!: Response;
+    let j: any;
+    for (let intento = 0; intento < 4; intento++) {
+      r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      j = await r.json();
+      if (r.status !== 503 && r.status !== 429) break;
+      await new Promise((ok) => setTimeout(ok, 1500 * (intento + 1)));
+    }
+
     if (!r.ok) return NextResponse.json({ error: j?.error?.message || "Gemini rechazó la solicitud" }, { status: 502 });
     const txt = j.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
     return NextResponse.json(JSON.parse(txt.replace(/```json|```/g, "")));
